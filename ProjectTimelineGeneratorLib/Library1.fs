@@ -72,6 +72,56 @@ type TaskIterationLayoutEngine() =
         // following week
         // also generates historical task commitment records for tasks completed in the past
 
+        // create a new task commitment record given a task, a developer's availability info 
+        // and the parent user story
+        let createTaskCommitment t developerLayout us =
+            let taskId = t.task.Id
+            let taskState = t.task.Fields.["State"].Value.ToString()
+            let taskTitle = t.task.Fields.["Title"].Value.ToString()
+            let originalEstimate = t.task.Fields.["Original Estimate"].Value
+                                    |> (fun d -> if d = null then 0.0 else float(d.ToString()))
+            let mutable remainingWork = t.task.Fields.["Remaining Work"].Value
+                                        |> (fun d -> if d = null then 0.0 else float(d.ToString()))
+            let mutable completedWork = t.task.Fields.["Completed Work"].Value
+                                        |> (fun d -> if d = null then 0.0 else float(d.ToString()))
+            let assignedTo = t.task.Fields.["Assigned To"].Value
+                                |> (fun d -> if d = null then "" else d.ToString())
+            let activatedDate = t.task.Fields.["Activated Date"].Value
+                                |> (fun d -> if d = null then "" else d.ToString())
+            let completedDate = t.task.Fields.["Closed Date"].Value
+                                |> (fun d -> if d = null then "" else d.ToString())
+            let iterationActivated = if activatedDate = "" then "" 
+                                        else findIteration (DateTime.Parse activatedDate)
+            let iterationCompleted = if completedDate = "" then "" 
+                                        else findIteration (DateTime.Parse completedDate)
+            let iterationWeekCompleted = if completedDate = "" then -1
+                                            else findIterationWeek (DateTime.Parse completedDate)
+            let isContinuedTask = if (t.hoursScheduledSoFar > 0.0) then true else false;
+            let isGeneratedPrecedingTask = false
+
+            {   committedDeveloper = developerLayout.developerToSchedule;
+                committedTask = t;
+                parentUserStory = us;
+                taskId = taskId;
+                taskTitle = taskTitle;
+                taskState = taskState;
+                originalEstimate = originalEstimate;
+                remainingWork = remainingWork;
+                completedWork = completedWork;
+                projectedCompletedWork = 0.0;
+                projectedRemainingWork = 0.0;
+                activatedDate = activatedDate;
+                completedDate = completedDate;
+                iterationActivated = iterationActivated;
+                iterationCompleted = iterationCompleted;
+                iterationWeekCompleted = iterationWeekCompleted;
+                committedIteration = developerLayout.currentLayoutIteration;
+                committedIterationWeek = developerLayout.currentLayoutIterationWeek;
+                hoursAgainstBudget = 0.0;
+                isContinuedTask = isContinuedTask;
+                isGeneratedPrecedingTask = isGeneratedPrecedingTask
+            }
+
         // this is the main workhorse algorithm that steps through a list of 
         // tasks to schedule for a particular developer and generates task commitment 
         // records (both for past already-completed tasks and future to-be-done tasks)
@@ -121,7 +171,7 @@ type TaskIterationLayoutEngine() =
                                                         |> List.fold 
                                                             (fun (acc2 : developerTaskCommitment list) 
                                                                  (i : int) -> let overrideCompleted =
-                                                                                getInterimCompleted t currentIteration i
+                                                                                getInterimCompleted t currentIteration 
                                                                               let currentTask = devTaskCommitment
                                                                               if overrideCompleted.Length > 0 then
                                                                                 let priorTask = createTaskCommitment t developerLayout us
@@ -131,7 +181,7 @@ type TaskIterationLayoutEngine() =
                                                                                                         |> (fun fc -> float (fc.postChangeValue.ToString()))
                                                                                 priorTask.committedIterationWeek <- i
                                                                                 let overrideRemaining =
-                                                                                    getInterimRemaining t currentIteration i                            
+                                                                                    getInterimRemaining t currentIteration                            
                                                                                 if overrideRemaining.Length > 0 then
                                                                                     priorTask.remainingWork <- overrideRemaining
                                                                                                             |> List.last

@@ -12,22 +12,17 @@ open Iterations
 let getFieldChanges(wi : WorkItem, fieldsToCompare : string list) =
     let compareRevision (rev1 : Revision) (rev2 : Revision) = 
         try  
-        let revisionComparison = fieldsToCompare 
-                                    |> List.map(fun f -> 
-                                                if not (rev1.Fields.[f].Value = rev2.Fields.[f].Value) then
-                                                    Some {
-                                                            taskId = wi.Id;
-                                                            fieldName = f;
-                                                            preChangeValue = rev1.Fields.[f].Value;
-                                                            postChangeValue = rev2.Fields.[f].Value;
-                                                            changedBy = getDeveloper (rev2.Fields.["Changed By"].Value.ToString());
-                                                            changedDate = DateTime.Parse (rev2.Fields.["Changed Date"].Value.ToString())
-                                                            }
-                                                else 
-                                                    None
-                                            )
-                                    |> List.where(fun rd -> not (rd = None))
-                                    |> List.map(fun rd -> rd.Value)
+        let revisionComparison = [ for f in fieldsToCompare do
+                                    if not (rev1.Fields.[f].Value = rev2.Fields.[f].Value) then
+                                        yield {
+                                            taskId = wi.Id;
+                                            fieldName = f;
+                                            preChangeValue = rev1.Fields.[f].Value;
+                                            postChangeValue = rev2.Fields.[f].Value;
+                                            changedBy = getDeveloper (rev2.Fields.["Changed By"].Value.ToString());
+                                            changedDate = DateTime.Parse (rev2.Fields.["Changed Date"].Value.ToString())
+                                        }
+                                ]
 
         revisionComparison
         with
@@ -42,22 +37,19 @@ let getFieldChanges(wi : WorkItem, fieldsToCompare : string list) =
                     |> Seq.toList
         
     // some fields may have been initialized in the first revision 
-    let initialRevs =
-        fieldsToCompare
-        |> List.map(fun f -> let rev = wi.Revisions.[0]
-                             if not (rev.Fields.[f].Value = null) then 
-                                Some {
-                                        taskId = wi.Id;
-                                        fieldName = f;
-                                        preChangeValue = rev.Fields.[f].Value;
-                                        postChangeValue = rev.Fields.[f].Value;
-                                        changedBy = getDeveloper (rev.Fields.["Changed By"].Value.ToString());
-                                        changedDate = DateTime.Parse (rev.Fields.["Changed Date"].Value.ToString())
-                                     }
-                                else
-                                None)
-        |> List.where(fun rd -> not (rd = None))
-        |> List.map(fun rd -> rd.Value)
+    let initialRevs = 
+        let rev = wi.Revisions.[0]
+        [ for f in fieldsToCompare do
+            if not (rev.Fields.[f].Value = null) then 
+                yield {
+                    taskId = wi.Id;
+                    fieldName = f;
+                    preChangeValue = rev.Fields.[f].Value;
+                    postChangeValue = rev.Fields.[f].Value;
+                    changedBy = getDeveloper (rev.Fields.["Changed By"].Value.ToString());
+                    changedDate = DateTime.Parse (rev.Fields.["Changed Date"].Value.ToString())
+                }
+       ]
 
     initialRevs
     |> List.append revisions
@@ -69,8 +61,8 @@ let getImmediateChildTasks(wi : WorkItem)  =
                     |> EnumeratorToEnumerable<WorkItemLink>
                     |> Seq.where(fun wil -> wil.LinkTypeEnd.Name = "Child")
 
-    let tasks = childLinks |> Seq.map(fun wil -> wil.TargetId)
-                    |> Seq.map(fun id -> workItemStore.GetWorkItem(id))
+    let tasks = childLinks 
+                    |> Seq.map(fun wil -> workItemStore.GetWorkItem(wil.TargetId))
                     |> Seq.where(fun wi -> wi.Type.Name = "Task" &&
                                             not (wi.State = "Removed"))
                     |> Seq.toList
@@ -142,68 +134,18 @@ let rec getAllChildUserStories(parent : WorkItem) =
     retVal
 
 // get all Completed Work changes that happened for a task during a particular iteration
-let getInterimCompleted task (iteration : scheduleInfo) (iterationWeek : int) =
+let getInterimCompleted task (iteration : scheduleInfo)  =
     let matchingCompleted = task.completedChanges
                             |> List.where(fun c -> c.changedDate >= iteration.startDate.Value &&
                                                     c.changedDate < iteration.endDate.Value)
     matchingCompleted
                        
 // get all Remaining Work changes that happened for a task during a particular iteration
-let getInterimRemaining task (iteration : scheduleInfo) (iterationWeek : int) =
+let getInterimRemaining task (iteration : scheduleInfo)  =
     let matchingRemaining = task.remainingChanges
                             |> List.where(fun c -> c.changedDate >= iteration.startDate.Value &&
                                                     c.changedDate < iteration.endDate.Value)
     matchingRemaining
-
-// create a new task commitment record given a task, a developer's availability info 
-// and the parent user story
-let createTaskCommitment t developerLayout us =
-    let taskId = t.task.Id
-    let taskState = t.task.Fields.["State"].Value.ToString()
-    let taskTitle = t.task.Fields.["Title"].Value.ToString()
-    let originalEstimate = t.task.Fields.["Original Estimate"].Value
-                            |> (fun d -> if d = null then 0.0 else float(d.ToString()))
-    let mutable remainingWork = t.task.Fields.["Remaining Work"].Value
-                                |> (fun d -> if d = null then 0.0 else float(d.ToString()))
-    let mutable completedWork = t.task.Fields.["Completed Work"].Value
-                                |> (fun d -> if d = null then 0.0 else float(d.ToString()))
-    let assignedTo = t.task.Fields.["Assigned To"].Value
-                        |> (fun d -> if d = null then "" else d.ToString())
-    let activatedDate = t.task.Fields.["Activated Date"].Value
-                        |> (fun d -> if d = null then "" else d.ToString())
-    let completedDate = t.task.Fields.["Closed Date"].Value
-                        |> (fun d -> if d = null then "" else d.ToString())
-    let iterationActivated = if activatedDate = "" then "" 
-                                else findIteration (DateTime.Parse activatedDate)
-    let iterationCompleted = if completedDate = "" then "" 
-                                else findIteration (DateTime.Parse completedDate)
-    let iterationWeekCompleted = if completedDate = "" then -1
-                                    else findIterationWeek (DateTime.Parse completedDate)
-    let isContinuedTask = if (t.hoursScheduledSoFar > 0.0) then true else false;
-    let isGeneratedPrecedingTask = false
-
-    {   committedDeveloper = developerLayout.developerToSchedule;
-        committedTask = t;
-        parentUserStory = us;
-        taskId = taskId;
-        taskTitle = taskTitle;
-        taskState = taskState;
-        originalEstimate = originalEstimate;
-        remainingWork = remainingWork;
-        completedWork = completedWork;
-        projectedCompletedWork = 0.0;
-        projectedRemainingWork = 0.0;
-        activatedDate = activatedDate;
-        completedDate = completedDate;
-        iterationActivated = iterationActivated;
-        iterationCompleted = iterationCompleted;
-        iterationWeekCompleted = iterationWeekCompleted;
-        committedIteration = developerLayout.currentLayoutIteration;
-        committedIterationWeek = developerLayout.currentLayoutIterationWeek;
-        hoursAgainstBudget = 0.0;
-        isContinuedTask = isContinuedTask;
-        isGeneratedPrecedingTask = isGeneratedPrecedingTask
-    }
 
 let getWorkItemFromId (id : int) =
     workItemStore.GetWorkItem(id)
