@@ -53,8 +53,13 @@
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
-    <Compile Include="Common.fs" />
     <Compile Include="Domain.fs" />
+    <Compile Include="Common.fs" />
+    <Compile Include="TFS.fs" />
+    <Compile Include="Iterations.fs" />
+    <Compile Include="Developers.fs" />
+    <Compile Include="WorkItems.fs" />
+    <Compile Include="Features.fs" />
     <Compile Include="Library1.fs" />
     <None Include="Script.fsx" />
     <Content Include="packages.config" />

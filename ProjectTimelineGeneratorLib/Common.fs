@@ -14,6 +14,7 @@ open System.Runtime.Serialization.Json
 open System.Text
 open System.IO
 
+
 let comarg x = ref (box x)
 
 let castAs<'T when 'T : null> (o:obj) = 
@@ -70,4 +71,16 @@ let getAsync<'result> (url : string, name : string, password : string)  = async 
     let qResults = deserializeJson<'result> x;
     return qResults
 } 
+
+// return a nullable DateTime by parsing an incoming string
+let myDateTryParse dateStr = 
+    let refDate = ref DateTime.Now
+    let couldParse, refDate = DateTime.TryParse(dateStr)
+    if (couldParse) then
+        Nullable refDate
+    else
+        Nullable()
+
+// here are the developers on the R&D team
+let developerNames = ["Developer1"; "Developer2";  "Developer3"; "Developer4"; "Developer5"]
 

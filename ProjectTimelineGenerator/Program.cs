@@ -11,6 +11,7 @@ using System.Runtime.Serialization;
 using System.IO;
 using System.Runtime.Serialization.Json;
 using Microsoft.TeamFoundation.WorkItemTracking.Client;
+using ProjectTimelineGeneratorLib.Domain;
 
 namespace ProjectTimelineGenerator
 {
@@ -110,7 +111,7 @@ namespace ProjectTimelineGenerator
         }
 
         // outputs User Story name to target word doc
-        private static Word.Paragraph insertUserStoryName(Word.Document doc, ProjectTimelineGeneratorEngine.userStory s,
+        private static Word.Paragraph insertUserStoryName(Word.Document doc, userStory s,
                    Word.WdColor fontColor = Word.WdColor.wdColorAutomatic)
         {
             var newParagraph = doc.Paragraphs.Add();
@@ -191,7 +192,7 @@ namespace ProjectTimelineGenerator
         }
 
         // add a row representing a closed task commitment to a closed task table
-        private static void addClosedTaskRow(ProjectTimelineGeneratorEngine.developerTaskCommitment dtc, Word.Table table)
+        private static void addClosedTaskRow(developerTaskCommitment dtc, Word.Table table)
         {
             Word.Row row = table.Rows.Add();
             int rowIndex = row.Index;
@@ -225,14 +226,14 @@ namespace ProjectTimelineGenerator
 
         // create a closed task table in target word doc to display closed tasks
         // these will added for individual iteration/user stories
-        private static void insertClosedTaskTable(Word.Document doc, IEnumerable<ProjectTimelineGeneratorEngine.developerTaskCommitment> taskList)
+        private static void insertClosedTaskTable(Word.Document doc, IEnumerable<developerTaskCommitment> taskList)
         {
             var table = addTableToDocument(doc, 9);
             addClosedTaskHeader(table);
 
             table.Range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
             var lastPageNumber = table.Range.Information[Word.WdInformation.wdActiveEndPageNumber];
-            foreach (ProjectTimelineGeneratorEngine.developerTaskCommitment taskCommitment in taskList)
+            foreach (developerTaskCommitment taskCommitment in taskList)
             {
                 table.Range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
                 var currentPageNumber = table.Range.Information[Word.WdInformation.wdActiveEndPageNumber];
@@ -257,7 +258,7 @@ namespace ProjectTimelineGenerator
         }
 
         // add a row representing a projected task commitment to a projected task table
-        private static void addProjectedTaskRow(ProjectTimelineGeneratorEngine.developerTaskCommitment dtc, Word.Table table)
+        private static void addProjectedTaskRow(developerTaskCommitment dtc, Word.Table table)
         {
             Word.Row row = table.Rows.Add();
             int rowIndex = row.Index;
@@ -297,14 +298,14 @@ namespace ProjectTimelineGenerator
 
         // create a projected task table in target word doc to display projected tasks
         // this table type is also used to display already completed tasks in the current iteration
-        private static void insertProjectedTaskTable(Word.Document doc, IEnumerable<ProjectTimelineGeneratorEngine.developerTaskCommitment> taskList)
+        private static void insertProjectedTaskTable(Word.Document doc, IEnumerable<developerTaskCommitment> taskList)
         {
             var table = addTableToDocument(doc, 8);
             addProjectedTaskHeader(table);
 
             table.Range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
             var lastPageNumber = table.Range.Information[Word.WdInformation.wdActiveEndPageNumber];
-            foreach (ProjectTimelineGeneratorEngine.developerTaskCommitment taskCommitment in taskList)
+            foreach (developerTaskCommitment taskCommitment in taskList)
             {
                 table.Range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
                 var currentPageNumber = table.Range.Information[Word.WdInformation.wdActiveEndPageNumber];
@@ -329,8 +330,8 @@ namespace ProjectTimelineGenerator
         }
 
         // given a user story and a list of tasks, outputs those tasks in a closed task formatted table
-        private static void outputClosedUserStoryTasks(ProjectTimelineGeneratorEngine.userStory userStory,
-                                            List<ProjectTimelineGeneratorEngine.developerTaskCommitment> storyTaskCommitments,
+        private static void outputClosedUserStoryTasks(userStory userStory,
+                                            List<developerTaskCommitment> storyTaskCommitments,
                                             Word.WdColor fontColor = Word.WdColor.wdColorAutomatic)
         {
             insertUserStoryName(PreviousIterationTimeLineDoc, userStory, fontColor);
@@ -338,8 +339,8 @@ namespace ProjectTimelineGenerator
         }
 
         // given a user story and a list of tasks, outputs those tasks in a projected task formatted table
-        private static void outputProjectedUserStoryTasks(ProjectTimelineGeneratorEngine.userStory userStory,
-                                            List<ProjectTimelineGeneratorEngine.developerTaskCommitment> storyTaskCommitments,
+        private static void outputProjectedUserStoryTasks(userStory userStory,
+                                            List<developerTaskCommitment> storyTaskCommitments,
                                             Word.WdColor fontColor = Word.WdColor.wdColorAutomatic)
         {
             insertUserStoryName(CurrentIterationTimeLineDoc, userStory, fontColor);
@@ -352,15 +353,15 @@ namespace ProjectTimelineGenerator
             public string iterationPath;
             public string startDate;
             public string endDate;
-            public List<ProjectTimelineGeneratorEngine.developerTaskCommitment> closedTasks;
-            public List<ProjectTimelineGeneratorEngine.developerTaskCommitment> scheduledButNotClosedTasks;
-            public List<ProjectTimelineGeneratorEngine.developerTaskCommitment> assignedActiveAndNewTasks;
+            public List<developerTaskCommitment> closedTasks;
+            public List<developerTaskCommitment> scheduledButNotClosedTasks;
+            public List<developerTaskCommitment> assignedActiveAndNewTasks;
         }
 
         // outputs summary verbiage and info by iteration for individual projects
         private static void outputFeatureSummary(
-                ProjectTimelineGeneratorEngine.feature feature,
-                List<ProjectTimelineGeneratorEngine.developerTaskCommitment> tasks)
+                feature feature,
+                List<developerTaskCommitment> tasks)
         {
             var currentIteration = engine.getCurrentIteration;
             var currentIterationWeek = engine.getCurrentIterationWeek;
@@ -443,8 +444,8 @@ namespace ProjectTimelineGenerator
 
         // adds a row for an individual feature to the Feature Status Summary table
         private static void addFeatureStatusSummaryRow(Word.Table table,
-            Tuple<ProjectTimelineGeneratorEngine.feature,
-                List<ProjectTimelineGeneratorEngine.developerTaskCommitment>> feature)
+            Tuple<feature,
+                List<developerTaskCommitment>> feature)
         {
             // this is the beginning of the earliest iteration that has tasks
             var tasksWithScheduledHours =
@@ -671,8 +672,8 @@ namespace ProjectTimelineGenerator
 
         // outputs a Word Table with one row for each feature and several columns of summary metrics
         private static void outputFeatureSummaryGrid(
-                List<Tuple<ProjectTimelineGeneratorEngine.feature,
-                List<ProjectTimelineGeneratorEngine.developerTaskCommitment>>> features)
+                List<Tuple<feature,
+                List<developerTaskCommitment>>> features)
         {
             var table = addTableToDocument(TimeLineSummaryDoc,13);
             addFeatureStatusSummaryHeader(table);
@@ -683,9 +684,9 @@ namespace ProjectTimelineGenerator
 
         // outputs summary of developer hours for each iteration for a given feature
         private static void addFeatureIterationSummary(
-            IDictionary<string,ProjectTimelineGeneratorEngine.developer> developers,
-            Tuple<ProjectTimelineGeneratorEngine.feature,
-                List<ProjectTimelineGeneratorEngine.developerTaskCommitment>> feature)
+            IDictionary<string,developer> developers,
+            Tuple<feature,
+                List<developerTaskCommitment>> feature)
         {
             var closedItems =
                 feature.Item2.Where(t => t.taskState == "Closed");
@@ -774,8 +775,8 @@ namespace ProjectTimelineGenerator
 
         // outputs a table of total developer hours per iteration for a given feature
         private static void outputFeatureIterationSummaryGrids(
-                List<Tuple<ProjectTimelineGeneratorEngine.feature,
-                List<ProjectTimelineGeneratorEngine.developerTaskCommitment>>> features)
+                List<Tuple<feature,
+                List<developerTaskCommitment>>> features)
         {
             var developers = engine.getDevelopers;
 
@@ -784,7 +785,7 @@ namespace ProjectTimelineGenerator
         }
 
         private static void outputCurrentIterationFeatureTimeline(
-            List<ProjectTimelineGeneratorEngine.developerTaskCommitment> taskCommitments)
+            List<developerTaskCommitment> taskCommitments)
         {
             var currentIteration = engine.getCurrentIteration;
             var currentIterationWeek = engine.getCurrentIterationWeek;
@@ -845,7 +846,7 @@ namespace ProjectTimelineGenerator
 
         }
 
-        private static void outputPreviousIterationFeatureTimeline(List<ProjectTimelineGeneratorEngine.developerTaskCommitment> taskCommitments)
+        private static void outputPreviousIterationFeatureTimeline(List<developerTaskCommitment> taskCommitments)
         {
             var currentIteration = engine.getCurrentIteration;
             var currentIterationWeek = engine.getCurrentIterationWeek;
@@ -1015,7 +1016,7 @@ namespace ProjectTimelineGenerator
             }
         }
 
-        private static ProjectTimelineGeneratorEngine.Class1 engine =  new ProjectTimelineGeneratorEngine.Class1();
+        private static ProjectTimelineGeneratorEngine.TaskIterationLayoutEngine engine =  new ProjectTimelineGeneratorEngine.TaskIterationLayoutEngine();
 
         [DataContract]
         public class QueryData
@@ -1112,8 +1113,8 @@ namespace ProjectTimelineGenerator
                 engine
                 .getFeatureTimelines
                 .Select(ft => 
-                            new Tuple<ProjectTimelineGeneratorEngine.feature,
-                                List<ProjectTimelineGeneratorEngine.developerTaskCommitment>>
+                            new Tuple<feature,
+                                List<developerTaskCommitment>>
                                     (ft.Item1,ft.Item2.ToList()))
                 .OrderBy(ft => ft.Item1.feature.Title)
                 .ToList();

@@ -1,4 +1,4 @@
-﻿module Domain
+﻿namespace ProjectTimelineGeneratorLib.Domain
 
 open System
 //open Microsoft.TeamFoundation
