@@ -241,7 +241,7 @@ type TaskIterationLayoutEngine() =
 
         // schedule a user story's tasks for each assigned developer
         // used in a fold below to accumulate a list of task commitments for all a feature's user stories
-        let addStoryToSchedule accDeveloperTaskCommits us =
+        let addStoryToSchedule accFeatureTaskCommits us =
             // filter out tasks that have already been scheduled
             let usTaskCommits = 
                 us.tasks 
@@ -268,7 +268,7 @@ type TaskIterationLayoutEngine() =
                                             |> List.rev
                                             |> List.append acc) []
             usTaskCommits
-            |> List.append accDeveloperTaskCommits
+            |> List.append accFeatureTaskCommits
                              
 
         // accumulate a list of all tasks from all user stories for this feature
