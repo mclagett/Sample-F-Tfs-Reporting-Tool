@@ -19,87 +19,11 @@ open System.Runtime.Serialization.Json
 open System.Text
 open System.IO
 
-let comarg x = ref (box x)
+open Common
+open Domain
 
 let tfsAddr = "http://tfs.aiscorp.com:8080/tfs"
 let tfsUri = new Uri(tfsAddr)
-
-let castAs<'T when 'T : null> (o:obj) = 
-  match o with
-  | :? 'T as res -> res
-  | _ -> null
-  
-exception InvalidCast of string
-
-let castAsWithException<'T> (o:obj) = 
-  match o with
-  | :? 'T as res -> res
-  | _ -> let errorMessage = "Unable to be cast as " + typedefof<'T>.ToString()
-         raise (InvalidCast(errorMessage)) 
-  
-let EnumeratorToEnumerable<'T when 'T : null> (src : IEnumerator) =
-    seq {    
-                while src.MoveNext() do 
-                    yield castAs<'T>(src.Current) 
-        }
-
-let EnumeratorToEnumerableEx<'T> (src : IEnumerator) =
-    seq {    
-                while src.MoveNext() do 
-                    yield castAsWithException<'T>(src.Current) 
-        }
-
-// represents a TFS iteration
-type scheduleInfo = {path : string; startDate : Nullable<DateTime>; endDate : Nullable<DateTime>}
-
-// these are the task states we are interested in
-type taskState = | New of int | Active of int | Closed of int 
-
-// more self-documenting
-type iterationWeek = int
-
-// tracks developer's availability for a given sprint week
-type developerWeek = { developer : string; iteration : string ; weekInIteration : iterationWeek; 
-                        totalHours : float; }
-
-// represents an individual developer resource
-type developer = { developerName : string; schedule : developerWeek list}
-
-// represents a TFS workItem value change; 
-// used in stepping through revision history to look for changes
-type fieldChange = { taskId : int; fieldName : string; preChangeValue : obj; postChangeValue : obj; 
-                        changedBy : developer; changedDate : DateTime}
-
-// used to track important info for a TFS task as we step through our iteration
-// schedule and either report on what's happened or project out future work
-type task = { task : WorkItem; mutable scheduled : bool; mutable hoursScheduledSoFar : float;
-                mutable remainingWork : float;
-                stateChanges : fieldChange list; iterationChanges : fieldChange list;
-                assignedToChanges : fieldChange list ; completedChanges : fieldChange list;
-                remainingChanges : fieldChange list; originalEstimateChanges : fieldChange list}
-
-// represents a TFS userStory that will have tasks committed against it
-type userStory = {userStory : WorkItem; sortOrder : float; tasks : task list }
-
-// represents a TFS feature, which is used to represent a project and to group 
-// user stories, iteration Notes and projected dates
-type feature = { feature : WorkItem; userStories : userStory list; iterationNotes : WorkItem list; projectedDates : WorkItem list}
-
-// represents a chunk of developer time committed to a particular task
-// this will either be actual hours for past or projected hours for future activities 
-type developerTaskCommitment = { committedDeveloper : developer; committedTask : task; originalEstimate : float;
-                                    mutable remainingWork : float; mutable completedWork : float; taskId : int; taskState : string; 
-                                    mutable projectedCompletedWork : float; mutable projectedRemainingWork : float;
-                                    taskTitle : string; parentUserStory : userStory; 
-                                    iterationActivated : string; iterationCompleted : string; iterationWeekCompleted : int; 
-                                    mutable committedIteration : scheduleInfo; mutable committedIterationWeek : int; 
-                                    mutable hoursAgainstBudget : float; isContinuedTask : bool; mutable isGeneratedPrecedingTask : bool;
-                                    activatedDate : string; completedDate : string }
-
-// used to track the availability of a particular developer as we commit 
-// developers to tasks for an iteration (used in projecting future work)
-type developerLayout = {developerToSchedule : developer; mutable currentLayoutIteration : scheduleInfo; 
-                            mutable currentLayoutIterationWeek : int; mutable remainingHours : float}
 
 // a series of classes used to hold results from TFS RESTful API queries
 [<DataContract>] 
@@ -194,36 +118,6 @@ type capacityResults =
         [<DataMember>] mutable count : int;
         [<DataMember>] mutable value : ResizeArray<capacityData>
     }
-
-// used for serializing to and from Json
-let toString = System.Text.Encoding.ASCII.GetString
-let toBytes (x : string) = System.Text.Encoding.ASCII.GetBytes x
-
-let serializeJson<'a> (x : 'a) =
-    let ser = new DataContractJsonSerializer(typedefof<'a>)
-    use stream = new MemoryStream()
-    ser.WriteObject(stream, x)
-    toString <| stream.ToArray()
-
-let deserializeJson<'a> (json : string) = 
-    let ser = new DataContractJsonSerializer(typedefof<'a>)
-    use stream = new MemoryStream(toBytes json)
-    ser.ReadObject(stream) :?> 'a
-
-
-// asynchronously execute a RESTful API Get call 
-let getAsync<'result> (url : string, name : string, password : string)  = async {
-    use client = new HttpClient()
-
-    client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-    client.DefaultRequestHeaders.Authorization <- new AuthenticationHeaderValue(
-                        "Basic", Convert.ToBase64String(Encoding.ASCII.GetBytes(String.Format("{0}:{1}", name, password))))
-    use! httpResponseMessage = client.GetAsync url |> Async.AwaitTask
-    httpResponseMessage.EnsureSuccessStatusCode() |> ignore
-    let! x = httpResponseMessage.Content.ReadAsStringAsync() |> Async.AwaitTask
-    let qResults = deserializeJson<'result> x;
-    return qResults
-} 
 
 // a .NET class used for exposing functionality to our C# client (see public memeber at the end)
 type Class1() = 
