@@ -23,8 +23,7 @@ let features = featureCollection.GetEnumerator()
                |> Seq.map(fun feat -> let childUserStories = 
                                             feat.WorkItemLinks.GetEnumerator()
                                             |> EnumeratorToEnumerable<WorkItemLink>
-                                            |> Seq.map(fun wil -> wil.TargetId)
-                                            |> Seq.map(fun id -> getWorkItemFromId(id))
+                                            |> Seq.map(fun wil -> getWorkItemFromId(wil.TargetId))
                                             |> Seq.where(fun wi -> wi.Type.Name = "User Story")
                                             |> Seq.map(fun wi -> getAllChildUserStories wi)
                                             |> Seq.concat
@@ -33,8 +32,7 @@ let features = featureCollection.GetEnumerator()
                                       let iterationNotes =
                                             feat.WorkItemLinks.GetEnumerator()
                                             |> EnumeratorToEnumerable<WorkItemLink>
-                                            |> Seq.map(fun wil -> wil.TargetId)
-                                            |> Seq.map(fun id -> getWorkItemFromId(id))
+                                            |> Seq.map(fun wil -> getWorkItemFromId(wil.TargetId))
                                             |> Seq.where(fun wi -> ((wi.Type.Name = "Issue") &&
                                                                     (wi.Title.Contains("Iteration Notes"))))
                                             |> Seq.toList
@@ -42,8 +40,7 @@ let features = featureCollection.GetEnumerator()
                                       let projectedDates =
                                             feat.WorkItemLinks.GetEnumerator()
                                             |> EnumeratorToEnumerable<WorkItemLink>
-                                            |> Seq.map(fun wil -> wil.TargetId)
-                                            |> Seq.map(fun id -> getWorkItemFromId(id))
+                                            |> Seq.map(fun wil -> getWorkItemFromId(wil.TargetId))
                                             |> Seq.where(fun wi -> ((wi.Type.Name = "Issue") &&
                                                                     (wi.Title.Contains("Projected Date"))))
                                             |> Seq.toList
