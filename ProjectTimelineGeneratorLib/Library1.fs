@@ -153,7 +153,7 @@ type TaskIterationLayoutEngine() =
                                                 availableHoursAgainstBudget
                                             else 
                                                 t.scheduled <- false; t.hoursScheduledSoFar <- availableHoursAgainstBudget + updatedBudget;
-                                                t.remainingWork <- t.remainingWork - availableHoursAgainstBudget;
+                                                t.remainingWork <- t.remainingWork - t.hoursScheduledSoFar;
                                                 availableHoursAgainstBudget + updatedBudget
 
                                         devTaskCommitment.hoursAgainstBudget <- hoursAgainstBudget
@@ -282,7 +282,7 @@ type TaskIterationLayoutEngine() =
         let sysEngWorkQuery = "Select [State], [Title] 
             From WorkItems
             Where [Work Item Type] = 'Task'
-            And [Tags] Contain 'R&D For Sys Eng'
+            And [Tags] Contains 'R&D For Sys Eng'
             Order By [State] Asc, [Changed Date] Desc"
 
         let sysEngWorkTasks = executeQuery(sysEngWorkQuery)
